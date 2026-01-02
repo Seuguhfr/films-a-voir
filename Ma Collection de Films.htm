@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<!-- saved from url=(0039)file:///Users/hugues/Downloads/jsp.html -->
+<html lang="fr"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ma Collection de Films</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --text-color: #333;
+            --card-bg: #fff;
+            --primary: #2c3e50;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+        }
+
+        header { text-align: center; margin-bottom: 40px; padding-top: 20px; }
+        h1 { font-size: 2.5rem; color: var(--primary); margin-bottom: 10px; }
+        .subtitle { color: #666; margin-bottom: 20px; }
+
+        /* Bouton Sauvegarde */
+        #save-btn {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-bottom: 20px;
+            transition: background 0.3s;
+            display: inline-block;
+        }
+        #save-btn:hover { background-color: #219150; }
+
+        .search-container { max-width: 600px; margin: 0 auto 30px auto; }
+        #search-input {
+            width: 100%; padding: 15px 20px; font-size: 16px;
+            border: 2px solid #ddd; border-radius: 50px; outline: none;
+            transition: border-color 0.3s;
+        }
+        #search-input:focus { border-color: var(--primary); }
+
+        .movie-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 25px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            position: relative; /* Pour le status loading */
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .poster-container {
+            height: 380px;
+            width: 100%;
+            position: relative;
+            background-color: #ddd;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .poster-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none; /* Hidden until loaded */
+            transition: opacity 0.5s;
+        }
+
+        .poster-fallback {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.5rem;
+            text-align: center;
+            padding: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .card-content {
+            padding: 15px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .movie-title { font-size: 1.1rem; margin-bottom: 5px; color: var(--primary); font-weight: 700; }
+        .meta-info { font-size: 0.8rem; color: #666; margin-bottom: 10px; display: flex; justify-content: space-between; }
+        
+        .synopsis { 
+            font-size: 0.85rem; 
+            line-height: 1.4; 
+            color: #444; 
+            max-height: 180px; 
+            overflow-y: auto; 
+            padding-right: 5px;
+        }
+        .synopsis::-webkit-scrollbar { width: 6px; }
+        .synopsis::-webkit-scrollbar-track { background: #f1f1f1; }
+        .synopsis::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+
+        /* Dégradés */
+        .bg-war { background: linear-gradient(135deg, #2c3e50, #bdc3c7); }
+        .bg-action { background: linear-gradient(135deg, #c0392b, #8e44ad); }
+        .bg-drama { background: linear-gradient(135deg, #34495e, #16a085); }
+        .bg-comedy { background: linear-gradient(135deg, #f1c40f, #e67e22); }
+        .bg-scifi { background: linear-gradient(135deg, #000428, #004e92); }
+        .bg-romance { background: linear-gradient(135deg, #ff9a9e, #fad0c4); }
+        .bg-western { background: linear-gradient(135deg, #d38312, #a83279); }
+        .bg-thriller { background: linear-gradient(135deg, #434343, #000000); }
+
+        /* Indicateur de status API */
+        #api-status {
+            text-align: center; 
+            font-size: 0.8rem; 
+            margin-bottom: 10px; 
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Cinémathèque</h1>
+    <p class="subtitle">Ma Collection Complète</p>
+    
+    <button id="save-btn" onclick="prepareForOffline()" style="display: none;">💾 Figer pour sauvegarde</button>
+    <div id="api-status">Mode Hors-Ligne Généré</div>
+
+    <div class="search-container" style="display: none;">
+        <input type="text" id="search-input" placeholder="Rechercher un film...">
+    </div>
+</header>
+
+<main class="movie-grid" id="grid"><div class="card" id="movie-card-0">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/xckzQXDUceZFAWsenLSTLhFlStq.jpg" class="poster-img" id="img-0" alt="Le Patriote" style="display: block;">
+                    <div class="poster-fallback bg-war" id="fallback-0" style="display: none;">
+                        Le Patriote
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Le Patriote</h2>
+                    <div class="meta-info">
+                        <span>2000</span>
+                    </div>
+                    <p class="synopsis" id="desc-0">Caroline du Sud, 1776. Le conflit entre les indépendantistes et les Anglais semble inévitable. Benjamin Martin sait trop bien ce qu'est une guerre et il n'en veut pas. Cet ancien héros des combats contre les français et les indiens n'ignore rien de la violence des affrontements armés... Aujourd'hui veuf, il élève seul ses 7 enfants dans sa plantation. Son fils aîné, Gabriel, s'engage contre l'avis de son père. Lorsque les troupes anglaises, commandées par le colonel Tavington, arrivent aux portes de sa propriété, il est trop tard.</p>
+                </div>
+            </div><div class="card" id="movie-card-1">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/xgxlMRIrtHqmkUKv9IuMnXINYsE.jpg" class="poster-img" id="img-1" alt="Master and Commander" style="display: block;">
+                    <div class="poster-fallback bg-war" id="fallback-1" style="display: none;">
+                        Master and Commander
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Master and Commander</h2>
+                    <div class="meta-info">
+                        <span>2003</span>
+                    </div>
+                    <p class="synopsis" id="desc-1">1805, durant les guerres napoléoniennes, la HMS Surprise, commandée par le Capitaine Jack Aubrey se lance à la poursuite du vaisseau français Acheron à travers l'océan Pacifique (affrontant notamment le cap Horn). Ils croisent par ailleurs au large des îles Galápagos, dont la faune et la flore vont beaucoup intéresser le chirurgien Stephen Maturin, naturaliste passionné et précurseur de Charles Darwin. Mais les événements vont changer les plans du capitaine.</p>
+                </div>
+            </div><div class="card" id="movie-card-2">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/5FNGb0beZQBDMAVAe2Nyeb7ki6v.jpg" class="poster-img" id="img-2" alt="Agents très spéciaux" style="display: block;">
+                    <div class="poster-fallback bg-action" id="fallback-2" style="display: none;">
+                        Agents très spéciaux
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Agents très spéciaux</h2>
+                    <div class="meta-info">
+                        <span>2015</span>
+                    </div>
+                    <p class="synopsis" id="desc-2">Au début des années 60, en pleine guerre froide, l'agent de la CIA Solo et de l'agent du KGB Kuryakin sont contraints de laisser de côté leur antagonisme ancestral. Les deux hommes s'engagent alors dans une mission conjointe: mettre hors d'état de nuire une organisation criminelle internationale déterminée à ébranler le fragile équilibre mondial, en favorisant la prolifération des armes et de la technologie nucléaires. Pour l'heure, Solo et Kuryakin n'ont qu'une piste: le contact de la fille d'un scientifique allemand porté disparu, le seul à même d'infiltrer l'organisation criminelle. Ils se lancent dans une course contre la montre pour retrouver sa trace et empêcher un cataclysme planétaire.</p>
+                </div>
+            </div><div class="card" id="movie-card-3">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/cteCb7HgeNmx8aeu5drpTb7N8fB.jpg" class="poster-img" id="img-3" alt="Braveheart" style="display: block;">
+                    <div class="poster-fallback bg-war" id="fallback-3" style="display: none;">
+                        Braveheart
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Braveheart</h2>
+                    <div class="meta-info">
+                        <span>1995</span>
+                    </div>
+                    <p class="synopsis" id="desc-3">À la fin du XIIIe siècle, le roi Edward 1er d'Angleterre s'empare du trône d’Écosse, réduisant son peuple à la misère. William Wallace donne le signe de la révolte et, à la tête d'une armée de gueux, parvient à reconquérir plusieurs places fortes. Mais les nobles écossais sont lâchés et par deux fois trahissent le héros de leur peuple…</p>
+                </div>
+            </div><div class="card" id="movie-card-4">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/uVGTJKNIHi08Eclu96OvpiOGuQf.jpg" class="poster-img" id="img-4" alt="Le Fugitif" style="display: block;">
+                    <div class="poster-fallback bg-action" id="fallback-4" style="display: none;">
+                        Le Fugitif
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Le Fugitif</h2>
+                    <div class="meta-info">
+                        <span>1993</span>
+                    </div>
+                    <p class="synopsis" id="desc-4">Mars 1992, Chicago. Richard Kimble est un chirurgien vasculaire renommé. Au sortir d'une intervention chirurgicale, le praticien rentre chez lui et découvre avec stupeur le cadavre de son épouse, Helen, qui vient d'être assassinée à leur domicile. Accusé du meurtre par la police de Chicago. Les policiers, doutant de la véracité de son témoignage, l'inculpent pour homicide, avec pour mobile le fait que Kimble est le seul héritier de la fortune de sa femme. Le tribunal le condamne à la peine capitale. Lors de son transfert vers le lieu de son incarcération, le bus pénitentiaire est la cible d'une tentative d'évasion de la part de certains prisonniers. Réussissant à s'échapper du bus, Kimble en profite pour disparaître dans la nature. Les fugitifs sont pris en chasse par l'ensemble des forces de police de l'État et plus spécialement par l'équipe d'enquêteurs de l'unité des marshals des États-Unis de Chicago, dirigée par le marshal Samuel Gerard.</p>
+                </div>
+            </div><div class="card" id="movie-card-5">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/4V06xpCUesnzXvkQav1q3RRlwxh.jpg" class="poster-img" id="img-5" alt="Civil War" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-5" style="display: none;">
+                        Civil War
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Civil War</h2>
+                    <div class="meta-info">
+                        <span>2024</span>
+                    </div>
+                    <p class="synopsis" id="desc-5">Dans un futur proche où les États-Unis sont au bord de l'effondrement et où des journalistes embarqués courent pour raconter la plus grande histoire de leur vie&nbsp;: la fin de l'Amérique telle que nous la connaissons. Une course effrénée à travers une Amérique fracturée qui, dans un futur proche, est plus que jamais sur le fil du rasoir.</p>
+                </div>
+            </div><div class="card" id="movie-card-6">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/5KIj6aioW1UtUT1IV0qqW5iZbNH.jpg" class="poster-img" id="img-6" alt="La La Land" style="display: block;">
+                    <div class="poster-fallback bg-romance" id="fallback-6" style="display: none;">
+                        La La Land
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">La La Land</h2>
+                    <div class="meta-info">
+                        <span>2016</span>
+                    </div>
+                    <p class="synopsis" id="desc-6">Au cœur de Los Angeles, une actrice en devenir prénommée Mia sert des cafés entre deux auditions. De son côté, Sebastian, passionné de jazz, joue du piano dans des clubs miteux pour assurer sa subsistance. Tous deux sont bien loin de la vie rêvée à laquelle ils aspirent… Le destin va réunir ces doux rêveurs, mais leur coup de foudre résistera-t-il aux tentations, aux déceptions, et à la vie trépidante d’Hollywood ?</p>
+                </div>
+            </div><div class="card" id="movie-card-7">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/5gJOu3t2QrznuJqjCG7FQDMI76t.jpg" class="poster-img" id="img-7" alt="Gladiator" style="display: block;">
+                    <div class="poster-fallback bg-war" id="fallback-7" style="display: none;">
+                        Gladiator
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Gladiator</h2>
+                    <div class="meta-info">
+                        <span>2000</span>
+                    </div>
+                    <p class="synopsis" id="desc-7">Le général romain Maximus est le plus fidèle soutien de l'empereur Marc Aurèle, qu'il a conduit de victoire en victoire avec une bravoure et un dévouement exemplaires. Jaloux du prestige de Maximus, et plus encore de l'amour que lui voue l'empereur, le fils de Marc Aurèle, Commode, s'arroge brutalement le pouvoir, puis ordonne l'arrestation du général et son exécution. Maximus échappe à ses assassins mais ne peut empêcher le massacre de sa famille. Capturé par un marchand d'esclaves, il devient gladiateur et prépare sa vengeance.</p>
+                </div>
+            </div><div class="card" id="movie-card-8">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/5KPGZANTmTj1U8esbC71typFVQH.jpg" class="poster-img" id="img-8" alt="À la poursuite d&#39;Octobre rouge" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-8" style="display: none;">
+                        À la poursuite d'Octobre rouge
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">À la poursuite d'Octobre rouge</h2>
+                    <div class="meta-info">
+                        <span>1990</span>
+                    </div>
+                    <p class="synopsis" id="desc-8">1984. L’URSS lance son sous-marin révolutionnaire, «Octobre Rouge». Armé d’ogives nucléaires et indétectable, c’est l’arme absolue. Sorti des eaux territoriales, son Capitaine Markus Ramius, l’as de la marine soviétique, met le cap sur l’Amérique. Les flottes soviétiques et américaines, ignorant ses véritables intentions, se lancent à sa poursuite… D’après le best-seller de Tom Clancy, le réalisateur John Mc Tiernan (Predator, Piège de Cristal) nous plonge dans un fabuleux suspense.</p>
+                </div>
+            </div><div class="card" id="movie-card-9">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/1VOKlC35yrwVKlfBSN52NY4zoF2.jpg" class="poster-img" id="img-9" alt="Dunkerque" style="display: block;">
+                    <div class="poster-fallback bg-war" id="fallback-9" style="display: none;">
+                        Dunkerque
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Dunkerque</h2>
+                    <div class="meta-info">
+                        <span>2017</span>
+                    </div>
+                    <p class="synopsis" id="desc-9">Au début de la Seconde Guerre mondiale, en mai 1940, environ 400 000 soldats britanniques, français et belges se retrouvent encerclés par les troupes allemandes dans la poche de Dunkerque. L'Opération Dynamo est mise en place pour évacuer le Corps expéditionnaire britannique (CEB) vers l'Angleterre. L'histoire s'intéresse aux destins croisés des soldats, pilotes, marins et civils anglais durant l'Opération Dynamo. Alors que le CEB est évacué par le port et les plages de Dunkerque, trois soldats britanniques, avec un peu d'ingéniosité et de chance, arrivent à embarquer sous les bombardements. Un périple bien plus grand les attend : la traversée du détroit du Pas de Calais.</p>
+                </div>
+            </div><div class="card" id="movie-card-10">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/t1i10ptOivG4hV7erkX3tmKpiqm.jpg" class="poster-img" id="img-10" alt="Fight Club" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-10" style="display: none;">
+                        Fight Club
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Fight Club</h2>
+                    <div class="meta-info">
+                        <span>1999</span>
+                    </div>
+                    <p class="synopsis" id="desc-10">Le narrateur, sans identité précise, vit seul, travaille seul, dort seul, mange seul ses plateaux‐repas pour une personne comme beaucoup d’autres personnes seules qui connaissent la misère humaine, morale et sexuelle. C’est pourquoi il va devenir membre du Fight club, un lieu clandestin où il va pouvoir retrouver sa virilité, l’échange et la communication. Ce club est dirigé par Tyler Durden, une sorte d’anarchiste entre gourou et philosophe qui prêche l’amour de son prochain.</p>
+                </div>
+            </div><div class="card" id="movie-card-11">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/r6xJpyD0KuIBW891S1SxNn1XuAQ.jpg" class="poster-img" id="img-11" alt="Le Patient anglais" style="display: block;">
+                    <div class="poster-fallback bg-romance" id="fallback-11" style="display: none;">
+                        Le Patient anglais
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Le Patient anglais</h2>
+                    <div class="meta-info">
+                        <span>1996</span>
+                    </div>
+                    <p class="synopsis" id="desc-11">En 1945, quatre personnes déchirées par la guerre se réfugient dans un monastère abandonné de Toscane pour se guérir de leurs maux. Peu à peu le passé va resurgir et la présence d'un homme mystérieux et méconnaissable, le patient anglais, va bouleverser le destin de ceux qui croisent son chemin.</p>
+                </div>
+            </div><div class="card" id="movie-card-12">
+                <div class="poster-container">
+                    <img src="file:///Users/hugues/Downloads/jsp.html" class="poster-img" id="img-12" alt="The Gentlemen">
+                    <div class="poster-fallback bg-action" id="fallback-12">
+                        The Gentlemen
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">The Gentlemen</h2>
+                    <div class="meta-info">
+                        <span>2019</span>
+                    </div>
+                    <p class="synopsis" id="desc-12">Pas de description disponible.</p>
+                </div>
+            </div><div class="card" id="movie-card-13">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/vOJl8230Eqoo9TkAKfJL0lzFTrb.jpg" class="poster-img" id="img-13" alt="Retour à Cold Mountain" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-13" style="display: none;">
+                        Retour à Cold Mountain
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Retour à Cold Mountain</h2>
+                    <div class="meta-info">
+                        <span>2003</span>
+                    </div>
+                    <p class="synopsis" id="desc-13">Dans une Amérique déchirée par la guerre de Sécession, un homme et une femme vont accomplir l'un vers l'autre le plus extraordinaire des voyages. Fille de pasteur, Ada a consacré toute sa jeunesse à la musique, aux arts et au bien-être d'un père veuf, qu'elle aime plus que tout au monde. Simple ouvrier, Inman est un homme farouche, avare de paroles, étranger à la société policée, pétrie de culture et traditions sudistes, dont s'entoure Ada.</p>
+                </div>
+            </div><div class="card" id="movie-card-14">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/qEr65B4yGlsmLQjcM0xjSUMfZS2.jpg" class="poster-img" id="img-14" alt="Le Bon, la Brute et le Truand" style="display: block;">
+                    <div class="poster-fallback bg-western" id="fallback-14" style="display: none;">
+                        Le Bon, la Brute et le Truand
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Le Bon, la Brute et le Truand</h2>
+                    <div class="meta-info">
+                        <span>1966</span>
+                    </div>
+                    <p class="synopsis" id="desc-14">Pendant la guerre de Sécession, Tuco et Joe se lancent à la recherche d'un coffre contenant 200 000 dollars en pièces d'or volés à l'armée sudiste. Ayant des indices complémentaires sur la cache, chacun a besoin de l'autre. Mais un troisième homme entre dans la course : Sentenza, un tueur qui ne recule devant rien pour parvenir à ses fins.</p>
+                </div>
+            </div><div class="card" id="movie-card-15">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/tEx2nyFU3WimKeceEZtZg2Jjvky.jpg" class="poster-img" id="img-15" alt="Reviens-moi" style="display: block;">
+                    <div class="poster-fallback bg-romance" id="fallback-15" style="display: none;">
+                        Reviens-moi
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Reviens-moi</h2>
+                    <div class="meta-info">
+                        <span>2007</span>
+                    </div>
+                    <p class="synopsis" id="desc-15">Août 1935. Malgré la canicule qui frappe l'Angleterre, la famille Tallis mène une vie insouciante à l'abri dans sa gigantesque demeure victorienne. La jeune Briony a trouvé sa vocation, elle sera romancière. Mais quand du haut de ses treize ans, elle surprend sa sœur aînée Cecilia dans les bras de Robbie, fils de domestique, sa réaction naïve face aux désirs des adultes va provoquer une tragédie et marquer à jamais le destin du jeune homme.</p>
+                </div>
+            </div><div class="card" id="movie-card-16">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/ovjV6gKLfjQi8Q0LHHWrD2xNK1x.jpg" class="poster-img" id="img-16" alt="My Left Foot" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-16" style="display: none;">
+                        My Left Foot
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">My Left Foot</h2>
+                    <div class="meta-info">
+                        <span>1989</span>
+                    </div>
+                    <p class="synopsis" id="desc-16">Évocation de la vie de Christy Brown, peintre et écrivain, frappe d'une paralysie spasmodique à la naissance, d’après ses Mémoires rédigés en 1954.</p>
+                </div>
+            </div><div class="card" id="movie-card-17">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/res4M4iWhMl15fD4lxaeUh7obh9.jpg" class="poster-img" id="img-17" alt="Le Scaphandre et le Papillon" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-17" style="display: none;">
+                        Le Scaphandre et le Papillon
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Le Scaphandre et le Papillon</h2>
+                    <div class="meta-info">
+                        <span>2007</span>
+                    </div>
+                    <p class="synopsis" id="desc-17">Le 8 décembre 1995, un accident vasculaire brutal a plongé Jean-Dominique Bauby, journaliste et père de deux enfants, dans un coma profond. Quand il en sortit, toutes ses fonctions motrices étaient détériorées. Atteint de ce que la médecine appelle le "locked-in syndrome", il ne pouvait plus bouger, parler ni même respirer sans assistance. Dans ce corps inerte, seul un œil bouge. Cet œil, devient son lien avec le monde, avec les autres, avec la vie. Il cligne une fois pour dire "oui", deux fois pour dire "non". Avec son œil, il arrête l'attention de son visiteur sur les lettres de l'alphabet qu'on lui dicte et forme des mots, des phrases, des pages entières... Avec son œil, il écrit ce livre, "Le Scaphandre et le Papillon", dont chaque matin pendant des semaines, il a mémorisé les phrases avant de les dicter...</p>
+                </div>
+            </div><div class="card" id="movie-card-18">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/eKGcispYwnZdC4FPctDAtFXLkyu.jpg" class="poster-img" id="img-18" alt="Un air de famille" style="display: block;">
+                    <div class="poster-fallback bg-comedy" id="fallback-18" style="display: none;">
+                        Un air de famille
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Un air de famille</h2>
+                    <div class="meta-info">
+                        <span>1996</span>
+                    </div>
+                    <p class="synopsis" id="desc-18">Toutes les semaines dans la famille Menard, on se réunit au café dont Henri est le patron et on va manger tous ensemble Aux ducs de Bretagne. Ce soir, qui est pourtant un jour de fête, car c’est l’anniversaire de Yolande la belle‐fille, un incident va venir troubler les habitudes. Arlette, la femme d’Henri, est partie une semaine pour réfléchir, ce qui va déstabiliser les autres membres de la famille.</p>
+                </div>
+            </div><div class="card" id="movie-card-19">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/udRaQKzT0LG4iQFxHLaYjno9uAT.jpg" class="poster-img" id="img-19" alt="Kill Bill: Vol. 1" style="display: block;">
+                    <div class="poster-fallback bg-action" id="fallback-19" style="display: none;">
+                        Kill Bill: Vol. 1
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Kill Bill: Vol. 1</h2>
+                    <div class="meta-info">
+                        <span>2003</span>
+                    </div>
+                    <p class="synopsis" id="desc-19">Au cours d'un mariage, un commando armé massacre l'assistance, laissant pour morte la Mariée et l'enfant qu'elle porte. Après 4 ans de coma, la Mariée se lance à la poursuite des assassins, membres du clan de Bill, au sein duquel, sous le pseudonyme de Black Mamba, elle exerça elle-même autrefois ses talents de redoutable tueuse…</p>
+                </div>
+            </div><div class="card" id="movie-card-20">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/ylr0lRmfpmTzTI7A4J7UDjuO71F.jpg" class="poster-img" id="img-20" alt="Novembre" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-20" style="display: none;">
+                        Novembre
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Novembre</h2>
+                    <div class="meta-info">
+                        <span>2022</span>
+                    </div>
+                    <p class="synopsis" id="desc-20">Une plongée au cœur de l'Anti-Terrorisme pendant les 5 jours de traque qui ont suivi les attentats du 13 novembre 2015.</p>
+                </div>
+            </div><div class="card" id="movie-card-21">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/gfU7ZYQEOVI06eZBjTAMnrzTLL.jpg" class="poster-img" id="img-21" alt="Postal" style="display: block;">
+                    <div class="poster-fallback bg-comedy" id="fallback-21" style="display: none;">
+                        Postal
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Postal</h2>
+                    <div class="meta-info">
+                        <span>2007</span>
+                    </div>
+                    <p class="synopsis" id="desc-21">Un postier humilié et maltraité de la mal-nommée ville Paradise se retrouve à la porte à cause des dépenses de son ex-femme. Il trouve refuge chez son oncle, gourou local, tout aussi fauché que lui. Les deux losers envisagent de se remettre à flot en commettant des vols dans le parc d'attraction du coin, mais malheureusement pour eux, une armée de taliban vient de débarquer en ville avec la même idée. Menés par Ben Laden lui même...</p>
+                </div>
+            </div><div class="card" id="movie-card-22">
+                <div class="poster-container">
+                    <img src="file:///Users/hugues/Downloads/jsp.html" class="poster-img" id="img-22" alt="Coherence">
+                    <div class="poster-fallback bg-scifi" id="fallback-22">
+                        Coherence
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Coherence</h2>
+                    <div class="meta-info">
+                        <span>2013</span>
+                    </div>
+                    <p class="synopsis" id="desc-22">Info non trouvée (mais bon film !)</p>
+                </div>
+            </div><div class="card" id="movie-card-23">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/EdqMjShGif2XV8bs06g3GgtZEw.jpg" class="poster-img" id="img-23" alt="Dieu n&#39;est pas mort" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-23" style="display: none;">
+                        Dieu n'est pas mort
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Dieu n'est pas mort</h2>
+                    <div class="meta-info">
+                        <span>2014</span>
+                    </div>
+                    <p class="synopsis" id="desc-23">Le professeur de philosophie Radisson, citant de nombreux grands auteurs, demande à ses étudiants d’attester par écrit que Dieu est mort. L’un d’entre eux, Josh, s’y refuse. Son professeur le met alors au défi de prouver le contraire à lui et à ses camarades. Un défi qui ne sera pas sans conséquences…</p>
+                </div>
+            </div><div class="card" id="movie-card-24">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/unxQeVUi5DH01r7ZNvAHwpvX7UK.jpg" class="poster-img" id="img-24" alt="War Room" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-24" style="display: none;">
+                        War Room
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">War Room</h2>
+                    <div class="meta-info">
+                        <span>2015</span>
+                    </div>
+                    <p class="synopsis" id="desc-24">Tony et Elizabeth Jordan ont appramment tout pour être heureux : une fille adorable, des métiers qu'ils adorent, une belle maison. Mais les apparences peuvent être trompeuses. Leur mariage bat sérieusement de l'aile et leur fille se retrouve au milieu de cette situation. Grâces aux conseils prodigués par Miss Clara, une femme plus vieille, Elizabeth découvre qu'elle peut se battre pour sa famille plutôt que contre elle.</p>
+                </div>
+            </div><div class="card" id="movie-card-25">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/cOeo1QlBviELoqdoVC3wzGOqXpP.jpg" class="poster-img" id="img-25" alt="Max la Menace" style="display: block;">
+                    <div class="poster-fallback bg-comedy" id="fallback-25" style="display: none;">
+                        Max la Menace
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Max la Menace</h2>
+                    <div class="meta-info">
+                        <span>2008</span>
+                    </div>
+                    <p class="synopsis" id="desc-25">Après que le quartier général de l'agence de renseignement américaine CONTROL a été attaqué par l'association de criminels KAOS, l'identité de ses agents est compromise et le Chef n'a d'autre choix que de donner une promotion à Maxwell Smart, un analyste qui a toujours rêvé de travailler sur le terrain aux côtés du célèbre agent 23. Au lieu de cela, Max se voit assigner pour partenaire l'adorable mais redoutable agent 99. Avec une formation minimum, notre agent, armé seulement de quelques gadgets high-tech et de son enthousiasme délirant va devoir faire échouer les plans de Siegfried, le chef de KAOS. James Bond n'a plus qu'à bien se tenir.</p>
+                </div>
+            </div><div class="card" id="movie-card-26">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/qsSUH8zkRhbY23ebAuIHE0PhMUc.jpg" class="poster-img" id="img-26" alt="Johnny English" style="display: block;">
+                    <div class="poster-fallback bg-comedy" id="fallback-26" style="display: none;">
+                        Johnny English
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Johnny English</h2>
+                    <div class="meta-info">
+                        <span>2003</span>
+                    </div>
+                    <p class="synopsis" id="desc-26">Dans un monde angoissé, déboussolé, peu d'institutions sont aussi fiables que les services secrets britanniques. Leurs supers agents, leurs réseaux internationaux, leur matériel et leur panoplie high-tech en font l'ultime bastion de l'Honneur, du Devoir et de la Vérité.Informés d'un odieux complot contre les Joyaux de la Couronne, les services secrets mettent sur le coup la crème de la crème des espions de Sa Majesté - leur agent n°1. Mais ce dernier se fait tuer et est promptement rejoint dans l'autre monde par l'élite du Renseignement...La sécurité du pays, l'espoir de venger le contre-espionnage, la protection des Joyaux de la Couronne, symbole immémorial de la grandeur de l'Empire, reposent désormais sur les épaules d'un seul homme : Johnny English. Il ne craint rien et ne comprend rien. Ce n'est pas le meilleur des agents... C'est le seul.</p>
+                </div>
+            </div><div class="card" id="movie-card-27">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/8jYLrLAEC9nwKkqU6wcGdm0rzE7.jpg" class="poster-img" id="img-27" alt="Un espion ordinaire" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-27" style="display: none;">
+                        Un espion ordinaire
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Un espion ordinaire</h2>
+                    <div class="meta-info">
+                        <span>2020</span>
+                    </div>
+                    <p class="synopsis" id="desc-27">1960. Modeste représentant de commerce anglais, Greville Wynne se retrouve plongé au cœur de la guerre froide. À la demande du MI-6 et de la CIA, il noue une alliance aussi secrète que périlleuse avec le colonel soviétique Oleg Penkovsky. Objectif : fournir les renseignements nécessaires aux Occidentaux pour éviter un affrontement nucléaire et désamorcer la crise des missiles de Cuba. Il entame alors une série d'allers-retours entre Londres et Moscou en prenant de plus en plus de risques…</p>
+                </div>
+            </div><div class="card" id="movie-card-28">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/ttQ4ooQ5mzFLhlAtDUqvBDBXyQ5.jpg" class="poster-img" id="img-28" alt="Juré n°2" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-28" style="display: none;">
+                        Juré n°2
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Juré n°2</h2>
+                    <div class="meta-info">
+                        <span>2024</span>
+                    </div>
+                    <p class="synopsis" id="desc-28">Justin Kemp, un père de famille, qui est juré d’un procès très médiatisé pour meurtre. Il se retrouve alors aux prises avec un grave dilemme moral... Il a le pouvoir d’influencer le verdict du jury, qui pourrait décider de condamner ou de libérer l’assassin présumé.</p>
+                </div>
+            </div><div class="card" id="movie-card-29">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/zyxSZvaA7mU7mwnO1lR2cXUdQdV.jpg" class="poster-img" id="img-29" alt="Tu ne tueras point" style="display: block;">
+                    <div class="poster-fallback bg-war" id="fallback-29" style="display: none;">
+                        Tu ne tueras point
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Tu ne tueras point</h2>
+                    <div class="meta-info">
+                        <span>2016</span>
+                    </div>
+                    <p class="synopsis" id="desc-29">Quand la Seconde Guerre mondiale a éclaté, Desmond, un jeune américain, s’est retrouvé confronté à un dilemme: comme n’importe lequel de ses compatriotes, il voulait servir son pays, mais la violence était incompatible avec ses croyances et ses principes moraux. Il s’opposait ne serait-ce qu’à tenir une arme et refusait d’autant plus de tuer. Il s’engagea tout de même dans l’infanterie comme médecin. Son refus d’infléchir ses convictions lui valut d’être rudement mené par ses camarades et sa hiérarchie, mais c’est armé de sa seule foi qu’il est entré dans l’enfer de la guerre pour en devenir l’un des plus grands héros. Lors de la bataille d’Okinawa sur l’imprenable falaise de Maeda, il a réussi à sauver des dizaines de vies, seul sous le feu de l’ennemi, ramenant en sureté du champ de bataille, un à un, les soldats blessés.</p>
+                </div>
+            </div><div class="card" id="movie-card-30">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/7p5MzMb4h0Y2WUn73r4MHKNeh3X.jpg" class="poster-img" id="img-30" alt="The Truman Show" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-30" style="display: none;">
+                        The Truman Show
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">The Truman Show</h2>
+                    <div class="meta-info">
+                        <span>1998</span>
+                    </div>
+                    <p class="synopsis" id="desc-30">Il est la vedette d’un show télévisé - mais il ne le sait pas. Jim Carrey a conquis à la fois les critiques et le public pour sa prestation inoubliable dans ce chef-d'œuvre de Peter Weir. Il interprète Truman Burbank, un homme dont la vie entière est un show télévisé - Ses moindres faits et gestes sont filmés à son insu par un créateur/réalisateur/producteur avant-gardiste : la ville entière est un immense studio de cinéma ; ses voisins, ses collègues, ses amis et même sa femme sont des acteurs professionnels d’Hollywood. Un jour pourtant, Truman se doute de quelque chose. Sa réaction face à cette découverte vous fera rire, pleurer et vous émerveillera comme aucun film ne l’a jamais fait.</p>
+                </div>
+            </div><div class="card" id="movie-card-31">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/fLRbv1fGQD0OCPWkFy7PI2sESLj.jpg" class="poster-img" id="img-31" alt="La Liste de Schindler" style="display: block;">
+                    <div class="poster-fallback bg-war" id="fallback-31" style="display: none;">
+                        La Liste de Schindler
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">La Liste de Schindler</h2>
+                    <div class="meta-info">
+                        <span>1993</span>
+                    </div>
+                    <p class="synopsis" id="desc-31">Évocation des années de guerre d’Oskar Schindler, fils d’industriel d’origine autrichienne rentré à Cracovie en 1939 avec les troupes allemandes. Il va, tout au long de la guerre, protéger des juifs en les faisant travailler dans sa fabrique et en 1944 sauver 800 hommes et 300 femmes du camp d’extermination d’Auschwitz‐Birkenau.</p>
+                </div>
+            </div><div class="card" id="movie-card-32">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/vI05JxU356MciaQeYHjXlqfjQe0.jpg" class="poster-img" id="img-32" alt="Le Pianiste" style="display: block;">
+                    <div class="poster-fallback bg-war" id="fallback-32" style="display: none;">
+                        Le Pianiste
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Le Pianiste</h2>
+                    <div class="meta-info">
+                        <span>2002</span>
+                    </div>
+                    <p class="synopsis" id="desc-32">Varsovie, au mois d’octobre 1939. Un jeune pianiste juif, Wladyslaw Szpilman, est enfermé dans le ghetto avec sa famille. Il assiste, impuissant, aux humiliations que subissent quotidiennement les siens. Grâce à une aide extérieure, il échappe de justesse à la déportation mais voit partir toute sa famille. Le jeune homme se cache alors dans les maisons vides et observe passivement les derniers habitants se révolter contre l’occupation allemande. Après avoir réussi à s’échapper miraculeusement, il se terre dans des quartiers détruits et tente de survivre, ce qui s’avère de plus en plus dur. C’est alors qu’il rencontre un nazi mélomane…</p>
+                </div>
+            </div><div class="card" id="movie-card-33">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/dMxqv6b08mQCikVPZL4UBl2MuHR.jpg" class="poster-img" id="img-33" alt="Will Hunting" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-33" style="display: none;">
+                        Will Hunting
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Will Hunting</h2>
+                    <div class="meta-info">
+                        <span>1997</span>
+                    </div>
+                    <p class="synopsis" id="desc-33">Will Hunting est un authentique génie mais également un rebelle aux élans imprévisibles. Il est né dans le quartier populaire de South Boston et a arrêté très tôt ses études, refusant le brillant avenir que pouvait lui procurer son intelligence. Il vit désormais entouré d'une bande de copains et passe son temps dans les bars a chercher la bagarre et à commettre quelques petits délits qui risquent bien de l'envoyer en prison. C'est alors que ses dons prodigieux en mathématiques attirent l'attention du professeur Lambeau, du Massachusetts Institute of Technology...</p>
+                </div>
+            </div><div class="card" id="movie-card-34">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/xHeuF5zzlx1YxkULiz0mx1TMBJ7.jpg" class="poster-img" id="img-34" alt="Les Infiltrés" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-34" style="display: none;">
+                        Les Infiltrés
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Les Infiltrés</h2>
+                    <div class="meta-info">
+                        <span>2006</span>
+                    </div>
+                    <p class="synopsis" id="desc-34">À Boston, une lutte sans merci oppose la police à la pègre irlandaise. Pour mettre fin au règne du parrain Frank Costello, la police infiltre son gang avec « un bleu » issu des bas quartiers, Billy Costigan. Tandis que Billy s’efforce de gagner la confiance du malfrat vieillissant, Colin Sullivan entre dans la police au sein de l’Unité des Enquêtes Spéciales, chargée d’éliminer Costello. Mais Colin fonctionne en « sous‑marin » et informe Costello des opérations qui se trament contre lui. Risquant à tout moment d’être démasqués, Billy et Colin sont contraints de mener une double vie qui leur fait perdre leurs repères et leur identité. Traquenards et contre‑offensives s’enchaînent jusqu’au jour où chaque camp réalise qu’il héberge une taupe. Une course contre la montre s’engage entre les deux hommes avec un seul objectif&nbsp;: découvrir l’identité de l’autre sous peine d’y laisser sa peau…</p>
+                </div>
+            </div><div class="card" id="movie-card-35">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/kc55cCUCZKtAFpsCnZKM5uLBzwh.jpg" class="poster-img" id="img-35" alt="Les Affranchis" style="display: block;">
+                    <div class="poster-fallback bg-action" id="fallback-35" style="display: none;">
+                        Les Affranchis
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Les Affranchis</h2>
+                    <div class="meta-info">
+                        <span>1990</span>
+                    </div>
+                    <p class="synopsis" id="desc-35">Brooklyn, dans les années 50. Depuis l'enfance, le jeune Henry Hill rêve de devenir gangster. À 16 ans, il se met en selle auprès de Paul Cicero, un caïd local, et commet ses premiers délits. Arrêté et interrogé, il refuse de parler et gagne ainsi le respect du milieu. À sa sortie de prison, il fait la connaissance de James Conway et de Tommy DeVito, deux truands d'une extrême violence, et se lance avec eux dans des trafics de grande envergure. Karen, une jeune bourgeoise qu'il courtise et finit par épouser, ne devine sa profession qu'après être passée devant l'officier d'état-civil. Grisé par le succès, Henry multiplie les coups les plus audacieux…</p>
+                </div>
+            </div><div class="card" id="movie-card-36">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/c6NveyskoKlwAvouqEmKBRU0Pkp.jpg" class="poster-img" id="img-36" alt="La vie est belle" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-36" style="display: none;">
+                        La vie est belle
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">La vie est belle</h2>
+                    <div class="meta-info">
+                        <span>1997</span>
+                    </div>
+                    <p class="synopsis" id="desc-36">En 1938, Guido, jeune homme plein de gaieté, rêve d'ouvrir une librairie, malgré les tracasseries de l'administration fasciste. Il tombe amoureux de Dora, institutrice étouffée par le conformisme familial et l'enlève le jour de ses fiançailles avec un bureaucrate du régime. Cinq ans plus tard, Guido et Dora ont un fils : Giosue. Mais les lois raciales sont entrées en vigueur et Guido est juif. Il est alors déporté avec son fils. Par amour pour eux, Dora monte de son plein gré dans le train qui les emmène aux camps de la mort où Guido va tout faire pour éviter l'horreur à son fils…</p>
+                </div>
+            </div><div class="card" id="movie-card-37">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/oBhmd3261OkJ4Yg2FdSiD2wnyfe.jpg" class="poster-img" id="img-37" alt="Léon" style="display: block;">
+                    <div class="poster-fallback bg-action" id="fallback-37" style="display: none;">
+                        Léon
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Léon</h2>
+                    <div class="meta-info">
+                        <span>1994</span>
+                    </div>
+                    <p class="synopsis" id="desc-37">Léon est un tueur professionnel redoutable et insaisissable. Il vit seul à New York avec sa plante verte et ses habitudes jusqu'au jour où une petite Mathilda de douze ans sonne à sa porte et fait irruption dans sa vie.</p>
+                </div>
+            </div><div class="card" id="movie-card-38">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/pATJSq0OobFU9DmcKQUqQPpzDET.jpg" class="poster-img" id="img-38" alt="Nightcrawler" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-38" style="display: none;">
+                        Nightcrawler
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Nightcrawler</h2>
+                    <div class="meta-info">
+                        <span>2014</span>
+                    </div>
+                    <p class="synopsis" id="desc-38">Branché sur les fréquences radios de la police, Lou parcourt Los Angeles la nuit à la recherche d’images choc qu’il vend à prix d’or aux chaînes de TV locales. La course au spectaculaire n'aura aucune limite...</p>
+                </div>
+            </div><div class="card" id="movie-card-39">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/fUk1f0iOAezl5PZ7gQW6nrguOXk.jpg" class="poster-img" id="img-39" alt="Prisoners" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-39" style="display: none;">
+                        Prisoners
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Prisoners</h2>
+                    <div class="meta-info">
+                        <span>2013</span>
+                    </div>
+                    <p class="synopsis" id="desc-39">Dans la banlieue de Boston, deux fillettes de 6 ans, Anna et Joy, ont disparu. Le détective Loki privilégie la thèse du kidnapping suite au témoignage de Keller, le père d’Anna. Le suspect numéro 1 est rapidement arrêté mais est relâché quelques jours plus tard faute de preuve, entrainant la fureur de Keller. Aveuglé par sa douleur, le père dévasté se lance alors dans une course contre la montre pour retrouver les enfants disparus. De son côté, Loki essaie de trouver des indices pour arrêter le coupable avant que Keller ne commette l’irréparable… Les jours passent et les chances de retrouver les fillettes s’amenuisent…</p>
+                </div>
+            </div><div class="card" id="movie-card-40">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/zKcCaWewiEF2XGJDSureoXb2uoo.jpg" class="poster-img" id="img-40" alt="The Dictator" style="display: block;">
+                    <div class="poster-fallback bg-comedy" id="fallback-40" style="display: none;">
+                        The Dictator
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">The Dictator</h2>
+                    <div class="meta-info">
+                        <span>2012</span>
+                    </div>
+                    <p class="synopsis" id="desc-40">Les créateurs et la star de Borat vous offrent une comédie hallucinante sur ce qui arrive quand le pire dictateur du monde va en Amérique. Coincé à New York et privé de son pouvoir, Aladeen (Sacha Baron Cohen) est finalement forcé de vivre son pire cauchemar… le rêve américain. Préparez vous à mourir de rire avec cette comédie scandaleuse et honteusement drôle!</p>
+                </div>
+            </div><div class="card" id="movie-card-41">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/ajHaO6hqFmvRNsUh3BIFwE5ghsI.jpg" class="poster-img" id="img-41" alt="Zodiac" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-41" style="display: none;">
+                        Zodiac
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Zodiac</h2>
+                    <div class="meta-info">
+                        <span>2007</span>
+                    </div>
+                    <p class="synopsis" id="desc-41">Zodiac, l'insaisissable tueur en série qui sévit à la fin des années 60 et répandit la terreur dans la région de San Francisco, fut le Jack l'Éventreur de l'Amérique. Prodigue en messages cryptés, il semait les indices comme autant de cailloux blancs, et prenait un malin plaisir à narguer la presse et la police. Il s'attribua une trentaine d'assassinats, mais fit bien d'autres dégâts collatéraux parmi ceux qui le traquèrent. Ceci est la chronique de sa traque qui s'étire sur deux décennies…</p>
+                </div>
+            </div><div class="card" id="movie-card-42">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/3XriEpTdnplQRzyphAC0cu3emns.jpg" class="poster-img" id="img-42" alt="Whiplash" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-42" style="display: none;">
+                        Whiplash
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Whiplash</h2>
+                    <div class="meta-info">
+                        <span>2014</span>
+                    </div>
+                    <p class="synopsis" id="desc-42">Andrew, 19 ans, rêve de devenir l’un des meilleurs batteurs de jazz de sa génération. Mais la concurrence est rude au conservatoire de Manhattan où il s’entraîne avec acharnement. Il a pour objectif d’intégrer le fleuron des orchestres dirigé par Terence Fletcher, professeur féroce et intraitable. Lorsque celui-ci le repère enfin, Andrew se lance, sous sa direction, dans la quête de l’excellence…</p>
+                </div>
+            </div><div class="card" id="movie-card-43">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/lH2hSK6F1FZmS3ao384kZCMsbCl.jpg" class="poster-img" id="img-43" alt="Portrait de la jeune fille en feu" style="display: block;">
+                    <div class="poster-fallback bg-romance" id="fallback-43" style="display: none;">
+                        Portrait de la jeune fille en feu
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Portrait de la jeune fille en feu</h2>
+                    <div class="meta-info">
+                        <span>2019</span>
+                    </div>
+                    <p class="synopsis" id="desc-43">1770. Marianne est peintre et doit réaliser le portrait de mariage d’Héloïse, une jeune femme qui vient de quitter le couvent. Héloïse résiste à son destin d’épouse en refusant de poser. Marianne va devoir la peindre en secret. Introduite auprès d’elle en tant que dame de compagnie, elle la regarde.</p>
+                </div>
+            </div><div class="card" id="movie-card-44">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/vRXUnWrXUgXRoX0BaEcuNMfyeQt.jpg" class="poster-img" id="img-44" alt="Django Unchained" style="display: block;">
+                    <div class="poster-fallback bg-western" id="fallback-44" style="display: none;">
+                        Django Unchained
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Django Unchained</h2>
+                    <div class="meta-info">
+                        <span>2012</span>
+                    </div>
+                    <p class="synopsis" id="desc-44">Dans le sud des États‐Unis, deux ans avant la guerre de Sécession, le Dr King Schultz, un chasseur de primes allemand, fait l’acquisition de Django, un esclave qui peut l’aider à traquer les frères Brittle, les meurtriers qu’il recherche. Schultz promet à Django de lui rendre sa liberté lorsqu’il aura capturé les Brittle – morts ou vifs. Alors que les deux hommes pistent les dangereux criminels, Django n’oublie pas que son seul but est de retrouver Broomhilda, sa femme, dont il fut séparé à cause du commerce des esclaves… Lorsque Django et Schultz arrivent dans l’immense plantation du puissant Calvin Candie, ils éveillent les soupçons de Stephen, un esclave qui sert Candie et a toute sa confiance. Le moindre de leurs mouvements est désormais épié par une dangereuse organisation de plus en plus proche… Si Django et Schultz veulent espérer s’enfuir avec Broomhilda, ils vont devoir choisir entre l’indépendance et la solidarité, entre le sacrifice et la survie…</p>
+                </div>
+            </div><div class="card" id="movie-card-45">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/zi6RNYK1vXjIvpSBgjatXRcFYh2.jpg" class="poster-img" id="img-45" alt="Forrest Gump" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-45" style="display: none;">
+                        Forrest Gump
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Forrest Gump</h2>
+                    <div class="meta-info">
+                        <span>1994</span>
+                    </div>
+                    <p class="synopsis" id="desc-45">À Savannah, État de Géorgie, Forrest Gump, assis sur un banc public, livre à qui veut l’entendre, l’étrange récit de sa vie mouvementée sur trois décennies. Il naît dans un bourg de l’Alabama, affecté d’un quotient intellectuel inférieur à la moyenne et d’une paralysie partielle des jambes. Souvent raillé à l’école, le jeune Forrest se lie d’amitié avec Jenny. Propulsé de l'état d'handicapé physique à celui de vedette du football, de héros du Vietnam au roi de la crevette, des honneurs de la Maison Blanche au bonheur d'une histoire d'amour, Forrest est le symbole d'une époque, un candide dans une Amérique qui a perdu son innocence.</p>
+                </div>
+            </div><div class="card" id="movie-card-46">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/osfBQ18P0y3pwT5qVuhdPk8btbj.jpg" class="poster-img" id="img-46" alt="Dirty Dancing" style="display: block;">
+                    <div class="poster-fallback bg-romance" id="fallback-46" style="display: none;">
+                        Dirty Dancing
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Dirty Dancing</h2>
+                    <div class="meta-info">
+                        <span>1987</span>
+                    </div>
+                    <p class="synopsis" id="desc-46">En 1963. Bébé – de son vrai prénom Frédérique – fille d’une riche famille, passe ses vacances avec ses parents et sa sœur à la pension de la famille Kellerman dans l’État de l’Oregon. Elle va être confrontée à un monde qui lui est complètement étranger, celui de la danse, et vivre une histoire d’amour avec Johnny, l’un des professeurs de danse de l’établissement, issu d’un milieu social très différent. Film à petit budget d’Émile Ardolino, il deviendra l’un des plus grand succès des années 80.</p>
+                </div>
+            </div><div class="card" id="movie-card-47">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/apTFre4duDr92xJgsAts55OeHs1.jpg" class="poster-img" id="img-47" alt="Pretty Woman" style="display: block;">
+                    <div class="poster-fallback bg-romance" id="fallback-47" style="display: none;">
+                        Pretty Woman
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Pretty Woman</h2>
+                    <div class="meta-info">
+                        <span>1990</span>
+                    </div>
+                    <p class="synopsis" id="desc-47">Quand Edward Lewis, businessman de talent, s’offre les services de la belle Vivian, beauté fatale qui arpente chaque nuit les trottoirs d’Hollywood Boulevard, il décide par amusement de l’engager, de lui faire découvrir son style de vie, de la couvrir de cadeaux. Ils vivent ainsi quelque temps, jusqu’au jour où ils découvrent tous deux qu’ils ne peuvent plus se séparer…</p>
+                </div>
+            </div><div class="card" id="movie-card-48">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/nauABSXgv994NIlqWlMtuV51eqj.jpg" class="poster-img" id="img-48" alt="Diamants sur canapé" style="display: block;">
+                    <div class="poster-fallback bg-romance" id="fallback-48" style="display: none;">
+                        Diamants sur canapé
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Diamants sur canapé</h2>
+                    <div class="meta-info">
+                        <span>1961</span>
+                    </div>
+                    <p class="synopsis" id="desc-48">Holly Golightly est une délicieuse call-girl très en vue à New York, déterminée à se marier à un milliardaire brésilien. Son voisin est un jeune écrivain entretenu par une riche décoratrice. D’une relation amicale va naître une forte passion entre ces deux êtres si différents.<br> Une nouvelle fois Audrey Hepburn illumine l’écran de son charme dans cette comédie de Blake Edwards, adaptée du best-seller de Truman Capote (Breakfast at Tiffany’s).<br> Henry Mancini remporta l’Oscar® pour la chanson «Moon River».</p>
+                </div>
+            </div><div class="card" id="movie-card-49">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/qcWTuWPu6x6t2MKt0MTfbResJiV.jpg" class="poster-img" id="img-49" alt="The Grand Budapest Hotel" style="display: block;">
+                    <div class="poster-fallback bg-comedy" id="fallback-49" style="display: none;">
+                        The Grand Budapest Hotel
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">The Grand Budapest Hotel</h2>
+                    <div class="meta-info">
+                        <span>2014</span>
+                    </div>
+                    <p class="synopsis" id="desc-49">Pendant l’entre‐deux guerres, le légendaire concierge d’un grand hôtel et son jeune protégé se retrouvent impliqués dans une histoire mêlant le vol d’un tableau de la Renaissance, la bataille pour une énorme fortune familiale, et le lent puis soudain bouleversement qui transforme l’Europe en cette première moitié de XXème siècle.</p>
+                </div>
+            </div><div class="card" id="movie-card-50">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/5I66ZaHmUbZ9HgK34fFVeQPeAWP.jpg" class="poster-img" id="img-50" alt="Rencontre avec Joe Black" style="display: block;">
+                    <div class="poster-fallback bg-romance" id="fallback-50" style="display: none;">
+                        Rencontre avec Joe Black
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Rencontre avec Joe Black</h2>
+                    <div class="meta-info">
+                        <span>1998</span>
+                    </div>
+                    <p class="synopsis" id="desc-50">Une nuit, le magnat William Parrish ressent une violente douleur tandis qu'une voix surgissant des ténèbres lui annonce sa mort prochaine. À ce moment-là, un jeune inconnu se présente à son domicile pour l'accompagner vers son dernier voyage. Ce messager de l'au-delà impose à Parrish de l'héberger chez lui afin de lui donner l'occasion de partager un temps les expériences, les joies, les émotions et les drames des vivants, qui semblent lui être étrangers. En l'espace de trois jours, Joe Black révèlera toute la famille Parrish à elle-même.</p>
+                </div>
+            </div><div class="card" id="movie-card-51">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/zaMRWbvKdjDFlNXcvFzH3VcPvl9.jpg" class="poster-img" id="img-51" alt="Dream Scenario" style="display: block;">
+                    <div class="poster-fallback bg-comedy" id="fallback-51" style="display: none;">
+                        Dream Scenario
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Dream Scenario</h2>
+                    <div class="meta-info">
+                        <span>2023</span>
+                    </div>
+                    <p class="synopsis" id="desc-51">Un malheureux père de famille mène une vie discrète jusqu'au jour où il apparaît soudainement dans les rêves de millions de personnes. Il devient célèbre du jour au lendemain et reçoit l'attention qui lui a longtemps été refusée dans son métier de professeur. Mais sa nouvelle renommée a un prix: ses apparitions oniriques prennent de plus en plus des formes cauchemardesques qui mènent à la violence. Il doit faire face aux conséquences et aux côtés sombres de sa renommée inattendue.</p>
+                </div>
+            </div><div class="card" id="movie-card-52">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/7lHAZzc3N4n4zPhhSfkTALi2eXu.jpg" class="poster-img" id="img-52" alt="Ballerina" style="display: block;">
+                    <div class="poster-fallback bg-action" id="fallback-52" style="display: none;">
+                        Ballerina
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Ballerina</h2>
+                    <div class="meta-info">
+                        <span>2023</span>
+                    </div>
+                    <p class="synopsis" id="desc-52">Pas de description disponible.</p>
+                </div>
+            </div><div class="card" id="movie-card-53">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/ozXWxrxC6LGI7LMKMCMjLzFzsyr.jpg" class="poster-img" id="img-53" alt="Gran Turismo" style="display: block;">
+                    <div class="poster-fallback bg-action" id="fallback-53" style="display: none;">
+                        Gran Turismo
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Gran Turismo</h2>
+                    <div class="meta-info">
+                        <span>2023</span>
+                    </div>
+                    <p class="synopsis" id="desc-53">Gran Turismo est inspiré de l'incroyable histoire vécue d'une invraisemblable bande d'infortunés – un amateur de jeu vidéo de classe ouvrière, un ex-pilote d'autos de course paumé et un idéaliste de l'industrie du sport motorisé. Ensemble, ils risquent tout pour percer dans le sport le plus prestigieux au monde. Gran Turismo est une captivante histoire et un feu roulant d'action qui prouvent que tout est possible lorsqu'on conduit avec l'énergie du désespoir.</p>
+                </div>
+            </div><div class="card" id="movie-card-54">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/ma6qucx9aBJaCzUc26f4bf9R21K.jpg" class="poster-img" id="img-54" alt="Demolition" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-54" style="display: none;">
+                        Demolition
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Demolition</h2>
+                    <div class="meta-info">
+                        <span>2015</span>
+                    </div>
+                    <p class="synopsis" id="desc-54">Pas de description disponible.</p>
+                </div>
+            </div><div class="card" id="movie-card-55">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/ljW8CVhjhoJNrMor6pIQLM3Mhqr.jpg" class="poster-img" id="img-55" alt="Mars Attacks!" style="display: block;">
+                    <div class="poster-fallback bg-scifi" id="fallback-55" style="display: none;">
+                        Mars Attacks!
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Mars Attacks!</h2>
+                    <div class="meta-info">
+                        <span>1996</span>
+                    </div>
+                    <p class="synopsis" id="desc-55">Ils arrivent ! D’immondes Martiens, aux yeux globuleux et au crâne énorme, débarquent subitement sur la planète Terre. On ne connaît absolument rien de leurs intentions, mais le président des États‐Unis et ses conseillers se réjouissent unanimement de cette apparition incongrue. Tout comme Art Land, un ambitieux promoteur de Las Vegas, qui voit là la possibilité d’un fructueux coup de publicité, et sa femme, une ancienne alcoolique, fervente adepte du New Age, qui prépare dans la plus pure tradition ésotérique l’union cosmique entre les peuples de toutes les galaxies. Tout un programme ! Mais les affreux jojos venus d’ailleurs sont‐ils aussi cordiaux et désintéressés que tout ce petit monde veut bien le prétendre ?</p>
+                </div>
+            </div><div class="card" id="movie-card-56">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/mszYLUhrxU4wyjx2Q3Z8gKi5QKp.jpg" class="poster-img" id="img-56" alt="Roméo + Juliette" style="display: block;">
+                    <div class="poster-fallback bg-romance" id="fallback-56" style="display: none;">
+                        Roméo + Juliette
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Roméo + Juliette</h2>
+                    <div class="meta-info">
+                        <span>1996</span>
+                    </div>
+                    <p class="synopsis" id="desc-56">Aux Etats-Unis, à Verona Beach, deux richissimes familles se livrent une terrible guerre. Tybalt, neveu adoré de lady Capulet, entouré de ses hommes de main, vêtus de noir, affronte régulièrement le clan des Montaigu, dont fait partie Roméo, peu concerné par ces histoires familiales. Il assiste d'ailleurs, masqué, à une fête donnée chez les Capulet. Là, il tombe éperdument amoureux de Juliette, la fille de la maison. Ses sentiments s'avèrent réciproques. Les deux tourtereaux font rapidement appel au frère Laurent pour les marier. Mercutio, un ami de Roméo, se prend de querelle avec Tybalt. Roméo tente de s'interposer, mais ne peut bientôt plus que pleurer la mort de Mercutio et en tirer une éclatante vengeance...</p>
+                </div>
+            </div><div class="card" id="movie-card-57">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/3xXftdp7OTQpebMheHGIrg6Nxj.jpg" class="poster-img" id="img-57" alt="Moulin Rouge!" style="display: block;">
+                    <div class="poster-fallback bg-romance" id="fallback-57" style="display: none;">
+                        Moulin Rouge!
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Moulin Rouge!</h2>
+                    <div class="meta-info">
+                        <span>2001</span>
+                    </div>
+                    <p class="synopsis" id="desc-57">À la fin du XIXe siècle, dans le Paris de la Belle Époque, Christian, un jeune poète désargenté, s'installe dans le quartier de Montmartre. Il découvre un univers où se mêlent sexe, drogue et french cancan, mais se rebelle contre ce milieu décadent en menant une vie de bohème. Christian rêve d'écrire une grande pièce, et le peintre Henri de Toulouse-Lautrec est prêt à lui donner sa chance. Celui-ci a besoin d'un spectacle grandiose pour le Moulin Rouge et le poète est embauché pour rédiger le livret de la revue. C'est là qu'il tombe amoureux de la courtisane Satine, la star du prodigieux cabaret…</p>
+                </div>
+            </div><div class="card" id="movie-card-58">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/apvQQZTVLTEHrkQiDdUe3jUDY9Y.jpg" class="poster-img" id="img-58" alt="Gatsby le Magnifique" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-58" style="display: none;">
+                        Gatsby le Magnifique
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Gatsby le Magnifique</h2>
+                    <div class="meta-info">
+                        <span>2013</span>
+                    </div>
+                    <p class="synopsis" id="desc-58">Printemps 1922. L'époque est propice au relâchement des mœurs, à l'essor du jazz et à l’enrichissement des contrebandiers d’alcool… Apprenti écrivain, Nick Carraway quitte la région du Middle‐West pour s'installer à New York. Voulant sa part du rêve américain, il vit désormais entouré d'un mystérieux millionnaire, Jay Gatsby, qui s'étourdit en fêtes mondaines, et de sa cousine Daisy et de son mari volage, Tom Buchanan, issu de sang noble. C’est ainsi que Nick se retrouve au cœur du monde fascinant des milliardaires, de leurs illusions, de leurs amours et de leurs mensonges. Témoin privilégié de son temps, il se met à écrire une histoire où se mêlent des amours impossibles, des rêves d’absolu et des tragédies ravageuses et, chemin faisant, nous tend un miroir où se reflètent notre époque moderne et ses combats.</p>
+                </div>
+            </div><div class="card" id="movie-card-59">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/3kd322ZpoZdKqrij6CPQtyGaryG.jpg" class="poster-img" id="img-59" alt="Requiem pour un massacre" style="display: block;">
+                    <div class="poster-fallback bg-war" id="fallback-59" style="display: none;">
+                        Requiem pour un massacre
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Requiem pour un massacre</h2>
+                    <div class="meta-info">
+                        <span>1985</span>
+                    </div>
+                    <p class="synopsis" id="desc-59">Pas de description disponible.</p>
+                </div>
+            </div><div class="card" id="movie-card-60">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/lPKwFzX4TiWLA4Mo5Bnf8aIIrJm.jpg" class="poster-img" id="img-60" alt="Inglourious Basterds" style="display: block;">
+                    <div class="poster-fallback bg-war" id="fallback-60" style="display: none;">
+                        Inglourious Basterds
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Inglourious Basterds</h2>
+                    <div class="meta-info">
+                        <span>2009</span>
+                    </div>
+                    <p class="synopsis" id="desc-60">Dans la France occupée de 1940, un groupe de soldats juifs américains, les bâtards, mène des actions punitives particulièrement sanglantes contre les nazis du Troisième Reich. Leur chemin rencontre celui de Shosanna Dreyfus, une jeune juive réfugiée à Paris exploitante d'une salle de cinéma qui entend elle aussi assouvir sa propre vengeance envers les nazis.</p>
+                </div>
+            </div><div class="card" id="movie-card-61">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/tEY81I7lpiHaLJa7AZ3O4vWXmJo.jpg" class="poster-img" id="img-61" alt="Five Nights at Freddy&#39;s" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-61" style="display: none;">
+                        Five Nights at Freddy's
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Five Nights at Freddy's</h2>
+                    <div class="meta-info">
+                        <span>2023</span>
+                    </div>
+                    <p class="synopsis" id="desc-61">Mike, jeune homme perturbé, est toujours hanté par la disparition, de son frère dix ans auparavant. Afin de ne pas perdre la garde de sa sœur Abby, il accepte un poste de gardien de nuit dans un restaurant désaffecté, Freddy Fazbear’s Pizzeria. Mais il ne tarde pas à être confronté, la nuit, à des phénomènes surnaturels inexplicables, et bascule dans un univers cauchemardesque…</p>
+                </div>
+            </div><div class="card" id="movie-card-62">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/bDmHZhKzmMGZZmfLm1BxiTEyAvo.jpg" class="poster-img" id="img-62" alt="Guerre et Paix" style="display: block;">
+                    <div class="poster-fallback bg-war" id="fallback-62" style="display: none;">
+                        Guerre et Paix
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Guerre et Paix</h2>
+                    <div class="meta-info">
+                        <span>1966</span>
+                    </div>
+                    <p class="synopsis" id="desc-62">Premier film d’une adaptation en quatre parties du roman de 1869 de Léon Tolstoï. À Saint-Pétersbourg en 1805, Pierre Bezukhov, fils illégitime d'un riche noble, est présenté à la haute société. Son ami, le prince Andrei Bolkonsky, rejoint l’armée impériale russe en tant qu’aide de camp du général Mikhail Kutuzov lors de la troisième coalition contre Napoléon.</p>
+                </div>
+            </div><div class="card" id="movie-card-63">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/oHBdsvdlPhzkJZOfax7Oy3X5mm7.jpg" class="poster-img" id="img-63" alt="Le Cercle des poètes disparus" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-63" style="display: none;">
+                        Le Cercle des poètes disparus
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Le Cercle des poètes disparus</h2>
+                    <div class="meta-info">
+                        <span>1989</span>
+                    </div>
+                    <p class="synopsis" id="desc-63">Todd Anderson est un garçon plutôt timide. Désormais élève de la prestigieuse académie Welton, réputée pour être l'une des plus fermées et austères des États-Unis, tout le monde attend de lui qu'il suive les traces de son frère, qui avait fait à Welton de brillantes études.  C'est là qu'il va faire la rencontre de M. Keating, un professeur de lettres anglaises qui, c'est le moins que l'on puisse dire, sort des sentiers battus. Jour après jour, M. Keating encourage ses élèves à penser par eux-mêmes et à refuser l'ordre établi. Cette rencontre va bouleverser la vie du jeune Todd, mais aussi celle de ses amis.</p>
+                </div>
+            </div><div class="card" id="movie-card-64">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/jPNjrxbZdlzqtuPPIN6ayyI0RyV.jpg" class="poster-img" id="img-64" alt="La Mort de Staline" style="display: block;">
+                    <div class="poster-fallback bg-comedy" id="fallback-64" style="display: none;">
+                        La Mort de Staline
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">La Mort de Staline</h2>
+                    <div class="meta-info">
+                        <span>2017</span>
+                    </div>
+                    <p class="synopsis" id="desc-64">Après la mort de Joseph Staline, chef suprême de l'Union soviétique, le 5 mars 1953, chacun tente de prendre le pouvoir et d'assurer sa survie au sein même de l'équipe ministérielle du dictateur défunt.</p>
+                </div>
+            </div><div class="card" id="movie-card-65">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/tbYvzpy4QFhUHRBHe4VeUKJst96.jpg" class="poster-img" id="img-65" alt="Spree" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-65" style="display: none;">
+                        Spree
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Spree</h2>
+                    <div class="meta-info">
+                        <span>2020</span>
+                    </div>
+                    <p class="synopsis" id="desc-65">Pendant plus de dix ans, Kurt a posté des vidéos sur sa chaîne YouTube, mais il n’a jamais percé. Afin de doper son audience, cet influenceur raté transforme son véhicule Uber en plateau de tournage, avant d’en faire un corbillard le temps d’une virée criminelle où il n’épargne personne.</p>
+                </div>
+            </div><div class="card" id="movie-card-66">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/mJJD5m0uHKqcWctQRcPoOuHvG6E.jpg" class="poster-img" id="img-66" alt="La Belle Époque" style="display: block;">
+                    <div class="poster-fallback bg-romance" id="fallback-66" style="display: none;">
+                        La Belle Époque
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">La Belle Époque</h2>
+                    <div class="meta-info">
+                        <span>2019</span>
+                    </div>
+                    <p class="synopsis" id="desc-66">Victor, un sexagénaire désabusé, voit sa vie bouleversée le jour où Antoine, un brillant entrepreneur, lui propose une attraction d’un genre nouveau: mélangeant artifices théâtraux et reconstitution historique, cette entreprise propose à ses clients de replonger dans l’époque de leur choix. Victor choisit alors de revivre la semaine la plus marquante de sa vie: celle où, 40 ans plus tôt, il rencontra le grand amour...</p>
+                </div>
+            </div><div class="card" id="movie-card-67">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/4dVjVQcgDvgclXhOjzxowGmkvmJ.jpg" class="poster-img" id="img-67" alt="The Stranger" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-67" style="display: none;">
+                        The Stranger
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">The Stranger</h2>
+                    <div class="meta-info">
+                        <span>2022</span>
+                    </div>
+                    <p class="synopsis" id="desc-67">Pas de description disponible.</p>
+                </div>
+            </div><div class="card" id="movie-card-68">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/e7WPtl3bwAsHnWP9luzrZcC8Lga.jpg" class="poster-img" id="img-68" alt="Awake" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-68" style="display: none;">
+                        Awake
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Awake</h2>
+                    <div class="meta-info">
+                        <span>2007</span>
+                    </div>
+                    <p class="synopsis" id="desc-68">En pleine opération, Clay, un riche héritier new-yorkais, revient à lui, prend conscience de sa situation. Mais, paralysé, privé de ses sens, il ne peut se faire entendre. Dans cet état, il va soudain découvrir qu'il est victime d'un complot remettant toute sa vie en question...</p>
+                </div>
+            </div><div class="card" id="movie-card-69">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/npSg63pVyGbUbPfWg7wYT7x0pqI.jpg" class="poster-img" id="img-69" alt="Hardcore Henry" style="display: block;">
+                    <div class="poster-fallback bg-action" id="fallback-69" style="display: none;">
+                        Hardcore Henry
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Hardcore Henry</h2>
+                    <div class="meta-info">
+                        <span>2015</span>
+                    </div>
+                    <p class="synopsis" id="desc-69">Attachez votre ceinture. Hardcore Henry est certainement l’expérience la plus intense et la plus originale à vivre au cinéma depuis bien longtemps ! Vous ne vous souvenez de rien. Votre femme vient de vous ramener à la vie. Elle vous apprend votre nom : Henry. Cinq minutes plus tard, vous êtes la cible d’une armée de mercenaires menée par un puissant chef militaire en quête de domination du monde. Vous parvenez à vous échapper mais votre femme se fait kidnapper. Vous voilà perdu dans un Moscou hostile. Ici tout le monde semble vouloir votre mort. Vous ne pouvez compter sur personne. Sauf peut-être sur le mystérieux Jimmy. Pouvez-vous lui faire confiance ? Arriverez-vous à survivre à ce chaos, sauver votre femme et à faire la lumière sur votre véritable identité ? Bonne chance Henry, vous allez en avoir besoin.</p>
+                </div>
+            </div><div class="card" id="movie-card-70">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/eGNpK9qDsSK4hgEoLSQTraxOUsE.jpg" class="poster-img" id="img-70" alt="Case départ" style="display: block;">
+                    <div class="poster-fallback bg-comedy" id="fallback-70" style="display: none;">
+                        Case départ
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Case départ</h2>
+                    <div class="meta-info">
+                        <span>2011</span>
+                    </div>
+                    <p class="synopsis" id="desc-70">Demi-frères, Joël et Régis n’ont en commun que leur père qu’ils connaissent à peine. Joël est au chômage et pas vraiment dégourdi. La France, « pays raciste » selon lui, est la cause de tous ses échecs et être noir est l’excuse permanente qu’il a trouvée pour ne pas chercher du travail ou payer son ticket de bus. Régis est de son côté totalement intégré. Tant et si bien qu’il renie totalement sa moitié noire et ne supporte pas qu’on fasse référence à ses origines. Délinquance et immigration vont de pair si l’on en croit ses paroles.</p>
+                </div>
+            </div><div class="card" id="movie-card-71">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/2yOcTP8s3SD6GVzqKWnk5tBfS7h.jpg" class="poster-img" id="img-71" alt="Swiss Army Man" style="display: block;">
+                    <div class="poster-fallback bg-comedy" id="fallback-71" style="display: none;">
+                        Swiss Army Man
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Swiss Army Man</h2>
+                    <div class="meta-info">
+                        <span>2016</span>
+                    </div>
+                    <p class="synopsis" id="desc-71">Hank, un homme désespéré errant dans la nature, découvre un mystérieux cadavre. Ils vont tous les deux embarquer dans un voyage épique afin de retrouver leur foyer. Lorsque Hank réalise que ce corps abandonné est la clé de sa survie, le suicidaire d'autrefois est forcé de convaincre un cadavre que la vie vaut la peine d'être vécue.</p>
+                </div>
+            </div><div class="card" id="movie-card-72">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/dgmgPPPI3APwLHXRvxaGCWGf3FE.jpg" class="poster-img" id="img-72" alt="Un homme idéal" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-72" style="display: none;">
+                        Un homme idéal
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Un homme idéal</h2>
+                    <div class="meta-info">
+                        <span>2015</span>
+                    </div>
+                    <p class="synopsis" id="desc-72">Mathieu, 25 ans, aspire depuis toujours à devenir un auteur reconnu. Un rêve qui lui semble inaccessible car malgré tous ses efforts, il n’a jamais réussi à être édité. En attendant, il gagne sa vie en travaillant chez son oncle qui dirige une société de déménagement…  Son destin bascule le jour où il tombe par hasard sur le manuscrit d’un vieil homme solitaire qui vient de décéder. Mathieu hésite avant finalement de s’en emparer, et de signer le texte de son nom...  Devenu le nouvel espoir le plus en vue de la littérature française, et alors que l’attente autour de son second roman devient chaque jour plus pressante, Mathieu va plonger dans une spirale mensongère et criminelle pour préserver à tout prix son secret…</p>
+                </div>
+            </div><div class="card" id="movie-card-73">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/vLY17UVvhwXpEjnTqTYqlmuO2py.jpg" class="poster-img" id="img-73" alt="Before Sunrise" style="display: block;">
+                    <div class="poster-fallback bg-romance" id="fallback-73" style="display: none;">
+                        Before Sunrise
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Before Sunrise</h2>
+                    <div class="meta-info">
+                        <span>1995</span>
+                    </div>
+                    <p class="synopsis" id="desc-73">Céline est une étudiante française qui est allée rendre visite à sa grand-mère à Budapest. Jesse est un jeune américain en voyage à travers l'Europe. Tous deux se rencontrent dans un train, entre Budapest et Vienne. Arrivés à Vienne, Jesse doit descendre. Il parvient à convaincre Céline de passer une nuit avec lui dans la capitale autrichienne. Au cours de cette nuit, ils apprendront à se connaître. Le lendemain, ils devront se séparer.</p>
+                </div>
+            </div><div class="card" id="movie-card-74">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/kYGvkQpq6yibGTMp7LcauV0fnc8.jpg" class="poster-img" id="img-74" alt="Marriage Story" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-74" style="display: none;">
+                        Marriage Story
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Marriage Story</h2>
+                    <div class="meta-info">
+                        <span>2019</span>
+                    </div>
+                    <p class="synopsis" id="desc-74">Nicole et Charlie, mariés depuis plusieurs années et parents d’un garçon de huit ans, mettent fin à leur relation. Il est persuadé que cela pourra se régler à l’amiable, et qu’il s’agit presque d’une formalité qui n’affectera pas beaucoup leur mode de vie. Elle voit les choses différemment, car elle a d’autres aspirations et veut éviter de perpétuer les habitudes à l’origine de leur séparation. La situation s’envenime lorsque le couple abandonne la médiation et s’engage dans un processus judiciaire complexe.</p>
+                </div>
+            </div><div class="card" id="movie-card-75">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/qWD9E0Wgn8w6nMMutCNFAUiSHrX.jpg" class="poster-img" id="img-75" alt="Blade Runner 2049" style="display: block;">
+                    <div class="poster-fallback bg-scifi" id="fallback-75" style="display: none;">
+                        Blade Runner 2049
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Blade Runner 2049</h2>
+                    <div class="meta-info">
+                        <span>2017</span>
+                    </div>
+                    <p class="synopsis" id="desc-75">En 2049, la société est fragilisée par les nombreuses tensions entre les humains et leurs esclaves créés par bioingénierie. L’officier K est un Blade Runner&nbsp;: il fait partie d’une force d’intervention d’élite chargée de trouver et d’éliminer ceux qui n’obéissent pas aux ordres des humains. Lorsqu’il découvre un secret enfoui depuis longtemps et capable de changer le monde, les plus hautes instances décident que c’est à son tour d’être traqué et éliminé. Son seul espoir est de retrouver Rick Deckard, un ancien Blade Runner qui a disparu depuis des décennies…</p>
+                </div>
+            </div><div class="card" id="movie-card-76">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/6Eg6OfwghmSLVtt2sfGD5YOEFjI.jpg" class="poster-img" id="img-76" alt="Moonlight" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-76" style="display: none;">
+                        Moonlight
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Moonlight</h2>
+                    <div class="meta-info">
+                        <span>2016</span>
+                    </div>
+                    <p class="synopsis" id="desc-76">Après avoir grandi dans un quartier difficile de Miami, Chiron, un jeune homme tente de trouver sa place dans le monde. Moonlight évoque son parcours, de l’enfance à l’âge adulte.</p>
+                </div>
+            </div><div class="card" id="movie-card-77">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/yDaXmYZpFRSyYX33072EkbITNg.jpg" class="poster-img" id="img-77" alt="My Beautiful Boy" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-77" style="display: none;">
+                        My Beautiful Boy
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">My Beautiful Boy</h2>
+                    <div class="meta-info">
+                        <span>2018</span>
+                    </div>
+                    <p class="synopsis" id="desc-77">Le monde de David Sheff s’effondre lorsqu’il découvre que son fils de 18 ans, Nic, est accro à la méthamphétamine. David décide de tout faire pour le sauver, se confrontant à ses propres limites mais aussi à celles de sa famille.</p>
+                </div>
+            </div><div class="card" id="movie-card-78">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/Au6ac2MEQuka3DtJMVxeyUaDNsh.jpg" class="poster-img" id="img-78" alt="(500) jours ensemble" style="display: block;">
+                    <div class="poster-fallback bg-romance" id="fallback-78" style="display: none;">
+                        (500) jours ensemble
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">(500) jours ensemble</h2>
+                    <div class="meta-info">
+                        <span>2009</span>
+                    </div>
+                    <p class="synopsis" id="desc-78">Tom croit encore en un amour qui transfigure, un amour à la destinée cosmique, un coup de foudre unique. Ce qui n'est pas du tout le cas de Summer. Cela n'empêche pourtant pas Tom de partir à sa conquête, armé de toute sa force et de tout son courage, tel un Don Quichotte des temps modernes. Le récit couvre tout le spectre de la relation amoureuse, du premier coup de cœur aux premiers rendez-vous, du sexe à la séparation, à la récrimination et à la rédemption, et décrit toutes les raisons qui nous poussent à nous battre aussi ardemment pour arriver à trouver un sens à l'amour.</p>
+                </div>
+            </div><div class="card" id="movie-card-79">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/wAfdj4F0ctkHBR7sQA1aq4wu3f5.jpg" class="poster-img" id="img-79" alt="Aftersun" style="display: block;">
+                    <div class="poster-fallback bg-drama" id="fallback-79" style="display: none;">
+                        Aftersun
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Aftersun</h2>
+                    <div class="meta-info">
+                        <span>2022</span>
+                    </div>
+                    <p class="synopsis" id="desc-79">Avec mélancolie, Sophie se remémore les vacances d’été passées avec son père vingt ans auparavant : les moments de joie partagée, leur complicité, parfois leurs désaccords. Elle repense aussi à ce qui planait au-dessus de ces instants si précieux : la sourde et invisible menace d’un bonheur finissant. Elle tente alors de chercher parmi ces souvenirs des réponses à la question qui l’obsède depuis tant d’années : qui était réellement cet homme qu’elle a le sentiment de ne pas connaître ?</p>
+                </div>
+            </div><div class="card" id="movie-card-80">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/zYSvjW4F16W6drhFtEtNAHAplIN.jpg" class="poster-img" id="img-80" alt="Eternal Sunshine of the Spotless Mind" style="display: block;">
+                    <div class="poster-fallback bg-romance" id="fallback-80" style="display: none;">
+                        Eternal Sunshine of the Spotless Mind
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Eternal Sunshine of the Spotless Mind</h2>
+                    <div class="meta-info">
+                        <span>2004</span>
+                    </div>
+                    <p class="synopsis" id="desc-80">Joel et Clementine ne voient plus que les mauvais côtés de leur tumultueuse histoire d’amour, au point que celle‐ci fait effacer de sa mémoire toute trace de cette relation. Effondré, Joël contacte l’inventeur du procédé Lacuna, le Dr. Mierzwiak, pour qu’il extirpe également de sa mémoire tout ce qui le rattachait à Clémentine. Deux techniciens, Stan et Patrick, s’installent à son domicile et se mettent à l’œuvre, en présence de la secrétaire, Mary. Les souvenirs commencent à défiler dans la tête de Joël, des plus récents aux plus anciens, et s’envolent un à un, à jamais. Mais en remontant le fil du temps, Joël redécouvre ce qu’il aimait depuis toujours en Clémentine – l’inaltérable magie d’un amour dont rien au monde ne devrait le priver. Luttant de toutes ses forces pour préserver ce trésor, il engage alors une bataille de la dernière chance contre Lacuna…</p>
+                </div>
+            </div><div class="card" id="movie-card-81">
+                <div class="poster-container">
+                    <img src="file:///Users/hugues/Downloads/jsp.html" class="poster-img" id="img-81" alt="Sound of Metal">
+                    <div class="poster-fallback bg-drama" id="fallback-81">
+                        Sound of Metal
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Sound of Metal</h2>
+                    <div class="meta-info">
+                        <span>2019</span>
+                    </div>
+                    <p class="synopsis" id="desc-81">Info non trouvée (mais bon film !)</p>
+                </div>
+            </div><div class="card" id="movie-card-82">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/iKmykghTmvQj6zum79TsdUL5mPF.jpg" class="poster-img" id="img-82" alt="The Call" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-82" style="display: none;">
+                        The Call
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">The Call</h2>
+                    <div class="meta-info">
+                        <span>2020</span>
+                    </div>
+                    <p class="synopsis" id="desc-82">Un homme qui vient de perdre sa femme tourmente un groupe d'amis. Il demande à ce qu'ils appellent sa défunte épouse. En effet, cette dernière s'est fait enterrée avec son téléphone...</p>
+                </div>
+            </div><div class="card" id="movie-card-83">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/8DTJq8btlJHVELjasGCa1mLMXUj.jpg" class="poster-img" id="img-83" alt="The Lighthouse" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-83" style="display: none;">
+                        The Lighthouse
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">The Lighthouse</h2>
+                    <div class="meta-info">
+                        <span>2019</span>
+                    </div>
+                    <p class="synopsis" id="desc-83">Le film se passe dans une île lointaine et mystérieuse de Nouvelle Angleterre à la fin du XIXème siècle, et met en scène une "histoire hypnotique et hallucinatoire" de deux gardiens de phare.</p>
+                </div>
+            </div><div class="card" id="movie-card-84">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/u0Ct3708zXaoJCkF65bLfenQmhM.jpg" class="poster-img" id="img-84" alt="Oldboy" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-84" style="display: none;">
+                        Oldboy
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Oldboy</h2>
+                    <div class="meta-info">
+                        <span>2003</span>
+                    </div>
+                    <p class="synopsis" id="desc-84">À la fin des années 80, Oh Dae-Soo, père de famille sans histoire, est enlevé un jour devant chez lui. Séquestré pendant plusieurs années dans une cellule privée, son seul lien avec l'extérieur est une télévision. Par le biais de cette télévision, il apprend le meurtre de sa femme, meurtre dont il est le principal suspect. Au désespoir d'être séquestré sans raison apparente succède alors chez le héros une rage intérieure vengeresse qui lui permet de survivre. Il est relâché 15 ans plus tard, toujours sans explication. Oh Dae-Soo est alors contacté par celui qui semble être le responsable de ses malheurs, qui lui propose de découvrir qui l'a enlevé et pourquoi. Le cauchemar continue pour le héros.</p>
+                </div>
+            </div><div class="card" id="movie-card-85">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/z3gIuT4e4tjCKYEYJChcBI44U21.jpg" class="poster-img" id="img-85" alt="Donnie Darko" style="display: block;">
+                    <div class="poster-fallback bg-scifi" id="fallback-85" style="display: none;">
+                        Donnie Darko
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Donnie Darko</h2>
+                    <div class="meta-info">
+                        <span>2001</span>
+                    </div>
+                    <p class="synopsis" id="desc-85">Donnie Darko n'est pas un adolescent comme les autres. Intelligent mais perturbé, il a pour ami imaginaire Frank, un lapin géant au visage effrayant. Lorsque, par miracle, Donnie échappe à la mort, Frank lui annonce que la fin du monde est proche et qu'il doit accomplir sa destinée... Rapidement, la petite ville tranquille va devenir le théâtre d'événements inquiétants qui cachent d'inavouables secrets. Rien n'est dû au hasard, seul Donnie peut agir, mais vite... car Frank le lui a dit...</p>
+                </div>
+            </div><div class="card" id="movie-card-86">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/fQ0vGVTtxjCdAJnxwPZ88O3Wzrh.jpg" class="poster-img" id="img-86" alt="Shutter Island" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-86" style="display: none;">
+                        Shutter Island
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Shutter Island</h2>
+                    <div class="meta-info">
+                        <span>2010</span>
+                    </div>
+                    <p class="synopsis" id="desc-86">En 1954, le marshal Teddy Daniels et son coéquipier Chuck Aule sont envoyés enquêter sur l’île de Shutter Island, dans un hôpital psychiatrique où sont internés de dangereux criminels. L’une des patientes, Rachel Solando, a inexplicablement disparu. Comment la meurtrière a‐t‐elle pu sortir d’une cellule fermée de l’extérieur ? Le seul indice retrouvé dans la pièce est une feuille de papier sur laquelle on peut lire une suite de chiffres et de lettres sans signification apparente. Œuvre cohérente d’une malade, ou cryptogramme ?</p>
+                </div>
+            </div><div class="card" id="movie-card-87">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/mSgYBWMybY9Ug4ZnCGsttPIjUx7.jpg" class="poster-img" id="img-87" alt="Premier Contact" style="display: block;">
+                    <div class="poster-fallback bg-scifi" id="fallback-87" style="display: none;">
+                        Premier Contact
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Premier Contact</h2>
+                    <div class="meta-info">
+                        <span>2016</span>
+                    </div>
+                    <p class="synopsis" id="desc-87">Lorsque de mystérieux vaisseaux venus du fond de l’espace surgissent un peu partout sur Terre, une équipe d’experts est rassemblée sous la direction de la linguiste Louise Banks afin de tenter de comprendre leurs intentions.  Face à l’énigme que constituent leur présence et leurs messages mystérieux, les réactions dans le monde sont extrêmes et l’humanité se retrouve bientôt au bord d’une guerre absolue. Louise Banks et son équipe n’ont que très peu de temps pour trouver des réponses. Pour les obtenir, la jeune femme va prendre un risque qui pourrait non seulement lui coûter la vie, mais détruire le genre humain…</p>
+                </div>
+            </div><div class="card" id="movie-card-88">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/srufbJNuTIWslnOSglCEfKNpepA.jpg" class="poster-img" id="img-88" alt="Enemy" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-88" style="display: none;">
+                        Enemy
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Enemy</h2>
+                    <div class="meta-info">
+                        <span>2013</span>
+                    </div>
+                    <p class="synopsis" id="desc-88">Pas de description disponible.</p>
+                </div>
+            </div><div class="card" id="movie-card-89">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/5Bz0u7xEyOUnGi4ov3rZKqKYCuH.jpg" class="poster-img" id="img-89" alt="Hereditary" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-89" style="display: none;">
+                        Hereditary
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Hereditary</h2>
+                    <div class="meta-info">
+                        <span>2018</span>
+                    </div>
+                    <p class="synopsis" id="desc-89">Quand Ellen, la matriarche de la famille Graham, meurt, sa fille revient vivre dans la maison avec sa famille. Ils vont alors découvrir le terrifiant secret de leur ancêtre...</p>
+                </div>
+            </div><div class="card" id="movie-card-90">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/95bKTnuIQJxkh53XadW32aPbcqO.jpg" class="poster-img" id="img-90" alt="Sorry to Bother You" style="display: block;">
+                    <div class="poster-fallback bg-comedy" id="fallback-90" style="display: none;">
+                        Sorry to Bother You
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Sorry to Bother You</h2>
+                    <div class="meta-info">
+                        <span>2018</span>
+                    </div>
+                    <p class="synopsis" id="desc-90">Après avoir décroché un boulot de vendeur en télémarketing, Cassius Green bascule dans un univers macabre en découvrant une méthode magique pour gagner beaucoup d’argent. Tandis que sa carrière décolle, ses amis et collègues se mobilisent contre l’exploitation dont ils s’estiment victimes au sein de l’entreprise. Mais Cassius se laisse fasciner par son patron cocaïnomane qui lui propose un salaire au-delà de ses espérances les plus folles…</p>
+                </div>
+            </div><div class="card" id="movie-card-91">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/17pvY55Zr60niVovNvgt72mwvES.jpg" class="poster-img" id="img-91" alt="Midsommar" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-91" style="display: none;">
+                        Midsommar
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Midsommar</h2>
+                    <div class="meta-info">
+                        <span>2019</span>
+                    </div>
+                    <p class="synopsis" id="desc-91">Dani et Christian sont sur le point de se séparer quand la famille de Dani est touchée par une tragédie. Attristé par le deuil de la jeune femme, Christian ne peut se résoudre à la laisser seule et l’emmène avec lui et ses amis à un festival estival qui n’a lieu que tous les 90 ans et se déroule dans un village suédois isolé. Mais ce qui commence comme des vacances insouciantes dans un pays où le soleil ne se couche pas va vite prendre une tournure beaucoup plus sinistre et inquiétante.</p>
+                </div>
+            </div><div class="card" id="movie-card-92">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/z4cpSCLQLbe2TwDZhmf8uzsKUMj.jpg" class="poster-img" id="img-92" alt="Mademoiselle" style="display: block;">
+                    <div class="poster-fallback bg-thriller" id="fallback-92" style="display: none;">
+                        Mademoiselle
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Mademoiselle</h2>
+                    <div class="meta-info">
+                        <span>2016</span>
+                    </div>
+                    <p class="synopsis" id="desc-92">Corée. Années 30, pendant la colonisation japonaise. Une jeune femme est engagée comme servante d’une riche japonaise, vivant recluse dans un immense manoir sous la coupe d’un oncle tyrannique. Mais Sookee a un secret. Avec l’aide d’un escroc se faisant passer pour un comte japonais, ils ont d’autres plans pour Hideko…</p>
+                </div>
+            </div><div class="card" id="movie-card-93">
+                <div class="poster-container">
+                    <img src="./Ma Collection de Films_files/92XglEsC6pnhBt1pxJYRFNRgs4F.jpg" class="poster-img" id="img-93" alt="Primer" style="display: block;">
+                    <div class="poster-fallback bg-scifi" id="fallback-93" style="display: none;">
+                        Primer
+                    </div>
+                </div>
+                <div class="card-content">
+                    <h2 class="movie-title">Primer</h2>
+                    <div class="meta-info">
+                        <span>2004</span>
+                    </div>
+                    <p class="synopsis" id="desc-93">Dans un garage de banlieue, quatre ingénieurs passent leur temps libre à travailler sur des brevets qu'ils espèrent commercialiser pour leur propre compte. Deux d'entre eux, Abe et Aaron, développent en secret une machine capable de réduire la masse des objets. Ils vont alors découvrir une capacité inattendue de ce qu'ils appellent « la boîte ». L'échelle temporelle ne serait pas la même à l'intérieur et à l'extérieur. Ils s'empressent d'en construire un modèle suffisamment grand pour en expérimenter les effets sur eux-mêmes. Il leur suffirait, ont-ils calculé, de « reculer » chaque jour de quelques heures pour manipuler leurs placements boursiers selon les données déjà publiées avant l'expérience. Très vite, ils se sentiront dépassés par ce qui leur arrive.</p>
+                </div>
+            </div></main>
+
+
+
+
+</body></html>
